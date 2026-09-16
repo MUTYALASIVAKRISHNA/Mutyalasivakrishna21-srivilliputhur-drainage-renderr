@@ -1,10 +1,21 @@
 // GIS Risk Map JavaScript for Srivilliputhur Municipality Drainage Prototype
 
-document.addEventListener('DOMContentLoaded', function () {
+function initMap() {
   const mapElement = document.getElementById('map');
   if (!mapElement) return;
 
-  // Initialize Map centered on Srivilliputhur Municipality
+  if (typeof L === 'undefined') {
+    console.warn('Leaflet not yet available, retrying in 100ms...');
+    setTimeout(initMap, 100);
+    return;
+  }
+
+  // Prevent multiple initializations if already initialized
+  if (mapElement._leaflet_id) {
+    return;
+  }
+
+  // Center on Srivilliputhur Municipality (Andal Temple / Town Center)
   const centerLat = 9.5088;
   const centerLng = 77.6307;
   const map = L.map('map', {
@@ -13,19 +24,23 @@ document.addEventListener('DOMContentLoaded', function () {
     zoomControl: true
   });
 
-  // Base Tile Layer (OpenStreetMap)
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Srivilliputhur Prototype',
+  // Base Tile Layer - CartoDB Voyager tiles (Highly reliable on cloud hosting & SSL)
+  const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
     maxZoom: 19
   }).addTo(map);
+
+  // Invalidate size after brief delays to guarantee proper container sizing
+  setTimeout(() => map.invalidateSize(), 150);
+  setTimeout(() => map.invalidateSize(), 500);
 
   // Layer Groups
   const syntheticLayer = L.layerGroup().addTo(map);
   const verifiedDrainLayer = L.layerGroup().addTo(map);
   const incidentsLayer = L.layerGroup().addTo(map);
-  const surveyLayer = L.layerGroup().addTo(map);
 
-  // Marker icon generators
+  // Custom Pin Generator
   function createCustomIcon(color, iconClass) {
     return L.divIcon({
       className: 'custom-map-pin',
@@ -42,9 +57,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const amberIcon = createCustomIcon('#f59e0b', 'fa-solid fa-triangle-exclamation');
   const blueIcon = createCustomIcon('#0284c7', 'fa-solid fa-faucet');
   const purpleIcon = createCustomIcon('#8b5cf6', 'fa-solid fa-newspaper');
-  const orangeIcon = createCustomIcon('#ea580c', 'fa-solid fa-clipboard-question');
 
-  // 1. Plot Synthetic Points (window.SYNTHETIC_POINTS)
+  // 1. Plot Synthetic Points
   if (window.SYNTHETIC_POINTS && Array.isArray(window.SYNTHETIC_POINTS)) {
     window.SYNTHETIC_POINTS.forEach(pt => {
       if (pt.latitude && pt.longitude) {
@@ -82,12 +96,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // 2. Plot Verified Drainage (window.VERIFIED_DRAINS)
-  // Tender drain in Bharathi Nagar: approx center street position near Ward 32
+  // 2. Plot Verified Drainage (Tender Drain in Ward 32)
   if (window.VERIFIED_DRAINS && Array.isArray(window.VERIFIED_DRAINS)) {
     window.VERIFIED_DRAINS.forEach(d => {
-      // Verified drain has street address "Bharathi Nagar 3rd Street Road", Ward 32
-      // Coordinates are not explicitly in tender, so we mark it in table or approximate landmark pin with clear badge
       const popupContent = `
         <div class="text-xs p-1">
           <div class="flex items-center justify-between gap-2 border-b border-slate-200 pb-1.5 mb-2">
@@ -107,7 +118,6 @@ document.addEventListener('DOMContentLoaded', function () {
           </div>
         </div>
       `;
-      // Representative anchor point in Ward 32 (Bharathi Nagar)
       const marker = L.marker([9.5042, 77.6358], { icon: blueIcon }).bindPopup(popupContent);
       verifiedDrainLayer.addLayer(marker);
     });
@@ -115,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // 3. Representative Historical Incidents (Landmarks)
   const historicalPins = [
-    { name: "Bus Stand & Uzhavar Santhai", desc: "Waterlogging & sewage overflow on roads (2026-02-24)", lat: 9.5122, lng: 9.5122 ? 77.6285 : 0, cause: "Blocked drains and silt" },
+    { name: "Bus Stand & Uzhavar Santhai", desc: "Waterlogging & sewage overflow on roads (2026-02-24)", lat: 9.5122, lng: 77.6285, cause: "Blocked drains and silt" },
     { name: "Madavarvilagam Vaithyanatha Swamy Temple", desc: "Temple flooding / Waterlogging (2024-12-17)", lat: 9.5188, lng: 77.6251, cause: "Heavy rain (~2 hours)" },
     { name: "Andal Temple Bazaar Streets", desc: "Heavy rain / Infrastructure damage (2021-07-07)", lat: 9.5152, lng: 77.6325, cause: "Heavy rain with wind" },
     { name: "Kulalar Street & Ottamadam", desc: "House collapse & flooding (2021-12-06)", lat: 9.5065, lng: 77.6310, cause: "Continuous heavy rain" }
@@ -131,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="text-[11px] space-y-1 mb-2">
           <div><span class="text-slate-500">Event:</span> ${p.desc}</div>
           <div><span class="text-slate-500">Cause Stated:</span> <strong>${p.cause}</strong></div>
-          <div class="text-slate-500 text-[10px] italic">Exact GPS: Landmark Reference | Source: News report</div>
+          <div class="text-slate-500 text-[10px] italic">Landmark Reference | Source: News report</div>
         </div>
       </div>
     `;
@@ -177,4 +187,11 @@ document.addEventListener('DOMContentLoaded', function () {
     btn.classList.add('bg-teal-700', 'text-white');
     btn.classList.remove('bg-slate-100', 'text-slate-700');
   }
-});
+}
+
+// Immediate execution if DOM is ready, or on DOMContentLoaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initMap);
+} else {
+  initMap();
+}

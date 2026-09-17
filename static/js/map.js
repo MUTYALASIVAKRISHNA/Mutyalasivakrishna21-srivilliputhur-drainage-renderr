@@ -24,12 +24,36 @@ function initMap() {
     zoomControl: true
   });
 
-  // Base Tile Layer - CartoDB Voyager tiles (Highly reliable on cloud hosting & SSL)
-  const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
+  // Base Tile Layer 1: OpenStreetMap Standard (Shows ALL street names, landmarks & Tamil/English labels)
+  const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Srivilliputhur Municipality',
+    subdomains: ['a', 'b', 'c'],
     maxZoom: 19
-  }).addTo(map);
+  });
+
+  // Base Tile Layer 2: Humanitarian OpenStreetMap (High-contrast drains, canals, waterways & roads)
+  const osmHot = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Humanitarian OSM Team',
+    subdomains: ['a', 'b', 'c'],
+    maxZoom: 19
+  });
+
+  // Base Tile Layer 3: Esri World Street Map (Clean cartographic street typography)
+  const esriStreets = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri',
+    maxZoom: 19
+  });
+
+  // Default to OpenStreetMap Standard (all street names visible without API keys or watermarks)
+  osmStandard.addTo(map);
+
+  // Basemap Switcher Control
+  const baseMaps = {
+    "OpenStreetMap (All Street Names)": osmStandard,
+    "Humanitarian (Waterways & Drains)": osmHot,
+    "Esri Streets": esriStreets
+  };
+  L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
   // Invalidate size after brief delays to guarantee proper container sizing
   setTimeout(() => map.invalidateSize(), 150);

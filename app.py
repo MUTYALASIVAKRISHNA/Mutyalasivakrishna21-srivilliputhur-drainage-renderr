@@ -53,6 +53,24 @@ app = Flask(
 app.secret_key = os.environ.get('SECRET_KEY', 'srivilliputhur_academic_prototype_secret_key_2026')
 CORS(app)
 
+# WSGI Middleware to strip Vercel serverless function entrypoint prefix (/api/index.py or /api/index) if rewritten by Vercel
+class VercelPrefixMiddleware:
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        path = environ.get('PATH_INFO', '')
+        for entry in ['/api/index.py', '/api/index']:
+            if path == entry:
+                environ['PATH_INFO'] = '/'
+                break
+            elif path.startswith(entry + '/'):
+                environ['PATH_INFO'] = path[len(entry):]
+                break
+        return self.wsgi_app(environ, start_response)
+
+app.wsgi_app = VercelPrefixMiddleware(app.wsgi_app)
+
 # Load ML Models and Metrics
 def get_ml_assets():
     metrics_path = MODELS_DIR / 'metrics.json'
@@ -103,6 +121,8 @@ def inject_global_context():
 # =========================================================================
 
 @app.route('/')
+@app.route('/api/index.py')
+@app.route('/api/index')
 def index():
     return render_template('index.html')
 

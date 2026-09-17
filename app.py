@@ -15,9 +15,25 @@ DATA_DIR = BASE_DIR / 'data'
 DB_PATH = DATA_DIR / 'srivilliputhur.db'
 MODELS_DIR = BASE_DIR / 'models'
 
+# Check for Serverless / Read-Only Environment (e.g. Vercel, AWS Lambda)
+if os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME') or not os.access(DATA_DIR, os.W_OK):
+    TMP_DIR = Path('/tmp')
+    TMP_DB = TMP_DIR / 'srivilliputhur.db'
+    if not TMP_DB.exists() and DB_PATH.exists():
+        try:
+            import shutil
+            shutil.copy2(DB_PATH, TMP_DB)
+        except Exception as e:
+            print(f"Notice: Failed copying DB to /tmp: {e}")
+    if TMP_DB.exists():
+        DB_PATH = TMP_DB
+
 # Ensure data directory and database exist upon startup
 def ensure_environment():
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
     if not DB_PATH.exists():
         try:
             import database
@@ -29,7 +45,11 @@ def ensure_environment():
 
 ensure_environment()
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder=str(BASE_DIR / 'templates'),
+    static_folder=str(BASE_DIR / 'static')
+)
 app.secret_key = os.environ.get('SECRET_KEY', 'srivilliputhur_academic_prototype_secret_key_2026')
 CORS(app)
 

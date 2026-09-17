@@ -9,14 +9,33 @@ DATA_DIR = BASE_DIR / 'data'
 DB_PATH = DATA_DIR / 'srivilliputhur.db'
 RAW_DIR = DATA_DIR / 'raw'
 
+# Check for Serverless / Read-Only Environment (e.g. Vercel, AWS Lambda)
+if os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME') or not os.access(DATA_DIR, os.W_OK):
+    TMP_DIR = Path('/tmp')
+    TMP_DB = TMP_DIR / 'srivilliputhur.db'
+    if not TMP_DB.exists() and DB_PATH.exists():
+        try:
+            import shutil
+            shutil.copy2(DB_PATH, TMP_DB)
+        except Exception as e:
+            pass
+    if TMP_DB.exists():
+        DB_PATH = TMP_DB
+
 def get_db():
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
     conn = get_db()
     cursor = conn.cursor()
 
